@@ -14,7 +14,7 @@ extract() {
   local target="$2"
 
   case "$file" in
-    *.img) print "- Flashing $(basename "$target") partition...." ;;
+    *.img) print "Flashing $(basename "$target") partition...." ;;
   esac
 
   unzip -p "$ZIPFILE" "$file" > "$target"
@@ -53,12 +53,19 @@ export PATH="/tmp:$PATH"
 
 sleep 1
 
-print " "
+# get infos from info.sh
+extract info.sh /tmp/info.sh
+chmod a+x /tmp/info.sh
+source /tmp/info.sh
+author=${author:-Unknown}
+device=${device:-Unknown}
+os_version=${os_version:-Unknown}
 
+print " "
 print_title "* FLASHABLE STOCK ROM" \
-  "* For Gold/Iron" \
-  "* OS2.0.208.0.VNQMIXM_15.0" \
-  "* by bintang rakagooning"
+  "* For $device" \
+  "* $os_version" \
+  "* by $author"
 
 sleep 2
 
