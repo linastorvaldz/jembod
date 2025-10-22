@@ -20,13 +20,6 @@ extract() {
   unzip -p "$ZIPFILE" "$file" > "$target"
 }
 
-umountPartitions() {
-  local p
-  for p in $@; do
-    umount $p 2> /dev/null
-  done
-}
-
 print_title() {
   local len max_len=0 bar
   for arg in "$@"; do
@@ -72,14 +65,15 @@ sleep 2
 extract dynamic_transfer_list.txt /tmp/dynamic_transfer_list.txt
 extract other_transfer_list.txt /tmp/other_transfer_list.txt
 
-umountPartitions system_root \
-  vendor \
-  product \
-  system_ext \
-  vendor_dlkm \
-  odm_dlkm \
-  mi_ext \
-  system_dlkm
+DYNAMIC_PARTITIONS=$(cat /tmp/dynamic_transfer_list.txt | awk '{print $1}')
+for p in $DYNAMIC_PARTITIONS; do
+  if [ "$p" == "system" ]; then
+    # special treatment for system partition
+    umount /system_root 2>/dev/null
+  else
+    umount /$p 2>/dev/null
+  fi
+done
 
 print " "
 SLOT=$(getprop ro.boot.slot_suffix)
@@ -102,14 +96,20 @@ print " "
 
 for p in $(cat /tmp/dynamic_transfer_list.txt | awk '{print $1}'); do
   TARGET=$(grep -w "$p" /tmp/dynamic_transfer_list.txt | awk '{print $3}')
+  blockdev --setrw ${TARGET}${SLOT}
   extract firmware-images/"$p".img ${TARGET}${SLOT}
   lptools unmap ${p}${SLOT} && lptools map ${p}${SLOT}
 done
 
 for p in $(cat /tmp/other_transfer_list.txt); do
+  p=${p//.img/}
   TARGET="/dev/block/by-name/${p}${SLOT}"
   if ! [ -e "$TARGET" ]; then
     TARGET="/dev/block/by-name/${p}"
+  fi
+  blockdev --setrw $TARGET
+  if echo "$TARGET" | grep -q 'boot'; then
+    dd if=/dev/zero of="$TARGET"
   fi
   extract firmware-images/"$p".img $TARGET
 done
