@@ -65,6 +65,7 @@ sleep 2
 extract dynamic_transfer_list.txt /tmp/dynamic_transfer_list.txt
 extract other_transfer_list.txt /tmp/other_transfer_list.txt
 
+# umount dynamic partitions before flashing
 DYNAMIC_PARTITIONS=$(cat /tmp/dynamic_transfer_list.txt | awk '{print $1}')
 for p in $DYNAMIC_PARTITIONS; do
   if [ "$p" == "system" ]; then
@@ -94,13 +95,15 @@ sleep 2
 print "- Done..."
 print " "
 
+# Dynamic partitions flashing
 for p in $(cat /tmp/dynamic_transfer_list.txt | awk '{print $1}'); do
   TARGET=$(grep -w "$p" /tmp/dynamic_transfer_list.txt | awk '{print $3}')
   blockdev --setrw ${TARGET}${SLOT}
-  extract firmware-images/"$p".img ${TARGET}${SLOT}
+  extract dynamic-partitions/"$p".img ${TARGET}${SLOT}
   lptools unmap ${p}${SLOT} && lptools map ${p}${SLOT}
 done
 
+# Firmware images flashing
 for p in $(cat /tmp/other_transfer_list.txt); do
   p=${p//.img/}
   TARGET="/dev/block/by-name/${p}${SLOT}"
