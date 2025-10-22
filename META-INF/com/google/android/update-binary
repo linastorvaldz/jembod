@@ -1,0 +1,127 @@
+#!/sbin/sh
+
+_FD=/proc/self/fd/$2
+ZIPFILE="$3"
+
+# --- Functions ---
+print() {
+  echo -e "ui_print $1\nui_print" >> $_FD
+}
+
+# $1: file $2: target
+extract() {
+  local file="$1"
+  local target="$2"
+
+  case "$file" in
+    *.img) print "- Flashing $(basename "$target") partition...." ;;
+  esac
+
+  unzip -p "$ZIPFILE" "$file" > "$target"
+}
+
+umountPartitions() {
+  local p
+  for p in $@; do
+    umount $p 2> /dev/null
+  done
+}
+
+print_title() {
+  local len max_len=0 bar
+  for arg in "$@"; do
+    len=${#arg}
+    [ "$len" -gt "$max_len" ] && max_len=$len
+  done
+  max_len=$((max_len + 2))
+  bar=$(printf "%${max_len}s" | tr ' ' '*')
+  print "$bar"
+
+  for arg in "$@"; do
+    print " $arg"
+  done
+
+  print "$bar"
+}
+
+# --- end of functions ---
+
+if ! command -v lptools > /dev/null 2>&1; then
+  print "- lptools binary is not found. Using from ZIP..."
+  extract bins/lptools /tmp/lptools
+  chmod 0755 /tmp/lptools
+fi
+if ! command -v avbctl > /dev/null 2>&1; then
+  print "- avbctl binary is not found. Using from ZIP..."
+  extract bins/avbctl /tmp/avbctl
+  chmod 0755 /tmp/avbctl
+fi
+export PATH="/tmp:$PATH"
+
+sleep 1
+
+print " "
+
+print_title "* FLASHABLE STOCK ROM" \
+  "* For Gold/Iron" \
+  "* OS2.0.208.0.VNQMIXM_15.0" \
+  "* by bintang rakagooning"
+
+sleep 2
+
+extract dynamic_transfer_list.txt /tmp/dynamic_transfer_list.txt
+extract other_transfer_list.txt /tmp/other_transfer_list.txt
+
+umountPartitions system_root \
+  vendor \
+  product \
+  system_ext \
+  vendor_dlkm \
+  odm_dlkm \
+  mi_ext \
+  system_dlkm
+
+print " "
+SLOT=$(getprop ro.boot.slot_suffix)
+print "- Current boot slot suffix: ${SLOT}"
+print "- Resizing current super slots..."
+
+lptools clear-cow
+
+for p in $(cat /tmp/dynamic_transfer_list.txt | awk '{print $1}'); do
+  SZ=$(grep -w "$p" /tmp/dynamic_transfer_list.txt | awk '{print $2}')
+  lptools unmap ${p}${SLOT} && lptools remove ${p}${SLOT}
+  lptools create ${p}${SLOT} ${SZ}
+  lptools map ${p}${SLOT}
+done
+
+sleep 2
+
+print "- Done..."
+print " "
+
+for p in $(cat /tmp/dynamic_transfer_list.txt | awk '{print $1}'); do
+  TARGET=$(grep -w "$p" /tmp/dynamic_transfer_list.txt | awk '{print $3}')
+  extract firmware-images/"$p".img ${TARGET}${SLOT}
+  lptools unmap ${p}${SLOT} && lptools map ${p}${SLOT}
+done
+
+for p in $(cat /tmp/other_transfer_list.txt); do
+  TARGET="/dev/block/by-name/${p}${SLOT}"
+  if ! [ -e "$TARGET" ]; then
+    TARGET="/dev/block/by-name/${p}"
+  fi
+  extract firmware-images/"$p".img $TARGET
+done
+
+sleep 2
+
+print " "
+print "- disabling avb Verity...."
+avbctl --force disable-verity
+
+print "- disabling AVB Verification..."
+avbctl --force disable-verification
+
+print " "
+print "- All partitions flashed successfully"

@@ -1,0 +1,8 @@
+system 916193280 /dev/block/mapper/system
+system_ext 796237824 /dev/block/mapper/system_ext
+product 3139444736 /dev/block/mapper/product
+vendor 1371828224 /dev/block/mapper/vendor
+mi_ext 861757440 /dev/block/mapper/mi_ext
+odm_dlkm 348160 /dev/block/mapper/odm_dlkm
+vendor_dlkm 13967360 /dev/block/mapper/vendor_dlkm
+system_dlkm 7278592 /dev/block/mapper/system_dlkm
