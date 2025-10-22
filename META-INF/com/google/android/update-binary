@@ -114,14 +114,18 @@ for p in $(cat /tmp/other_transfer_list.txt); do
   extract firmware-images/"$p".img $TARGET
 done
 
+sleep 1
+
+print " "
+print "- All partitions successfully flashed"
+
 sleep 2
 
 print " "
-print "- disabling avb Verity...."
+print "- Disabling AVB..."
 avbctl --force disable-verity
-
-print "- disabling AVB Verification..."
 avbctl --force disable-verification
-
 print " "
-print "- All partitions flashed successfully"
+
+sleep 2
+
